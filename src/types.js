@@ -1,11 +1,16 @@
 function getRecipe(type, energyAvailable, room){
     const d = {}
     const rcl = room.controller.level
-
+    const firstRoom = Game.gcl.level == 1
+    
     // used at all rcls
-    d.runner = scalingBody([2, 1], [CARRY, MOVE], energyAvailable)
+    if(firstRoom && rcl < 3){
+        d.runner = scalingBody([1, 1], [CARRY, MOVE], energyAvailable)
+    } else {
+        d.runner = scalingBody([2, 1], [CARRY, MOVE], energyAvailable)
+    }
     d.miner = minerBody(energyAvailable, rcl)
-    d.normal = upgraderBody(energyAvailable, rcl, room)
+    d.normal = upgraderBody(energyAvailable, rcl, room, firstRoom)
     d.transporter = scalingBody([2, 1], [CARRY, MOVE], energyAvailable, 30)
     d.builder = builderBody(energyAvailable, rcl)
     d.defender = defenderBody(energyAvailable, rcl)
@@ -25,23 +30,35 @@ function getRecipe(type, energyAvailable, room){
     d.depositMiner = body([20, 2, 22], [WORK, CARRY, MOVE])
 
     switch (rcl) {
+    case 2:
+        d["defender"] = body([1, 1, 2], [RANGED_ATTACK, HEAL, MOVE])
+        break
+    case 3:
+        d["defender"] = body([2, 1, 3], [RANGED_ATTACK, HEAL, MOVE])
+        break
     case 4:
         //lvl 4 recipes
+        d["defender"] = body([5, 1, 6], [RANGED_ATTACK, HEAL, MOVE])
         d["medic"] = body([2, 2], [MOVE, HEAL])
+        d["quad"] = body([1], [MOVE])
+        d["harasser"] = body([5, 1, 6], [RANGED_ATTACK, HEAL, MOVE])
         break
     case 5:
         //lvl 5 recipes
+        d["defender"] = body([6, 2, 8], [RANGED_ATTACK, HEAL, MOVE])
         d["medic"] = body([5, 5], [MOVE, HEAL])
         d["robber"] = body([15, 15], [CARRY, MOVE]) 
         break
     case 6:
         // lvl 6 recipes
+        d["defender"] = body([14, 6, 20], [RANGED_ATTACK, HEAL, MOVE])
         d["mineralMiner"] = body([12, 6, 9], [WORK, CARRY, MOVE])
         d["medic"] = body([7, 7], [MOVE, HEAL])
         d["robber"] = body([20, 20], [CARRY, MOVE])
         break
     case 7:
         // lvl 7 recipes
+        d["defender"] = body([1, 1, 2], [RANGED_ATTACK, HEAL, MOVE])
         d["mineralMiner"] = body([22, 10, 16], [WORK, CARRY, MOVE])
         d["harasser"] = body([9, 8, 1], [MOVE, RANGED_ATTACK, HEAL])
         d["medic"] = body([5, 20, 15], [TOUGH, MOVE, HEAL])
@@ -149,7 +166,7 @@ function minerBody(energyAvailable, rcl) {
     // miners. at least 1 move. 5 works until we can afford 10
     let works = Math.floor((energyAvailable - BODYPART_COST[MOVE]) / BODYPART_COST[WORK])
     if (works >= 25 && rcl > 7) works = 25
-    else if (works >= 10) works = 10
+    else if (works >= 10 && rcl > 6) works = 10
     else if (works >= 5) works = 5
     else works = Math.max(1, works)
     const energyAfterWorks = energyAvailable - works * BODYPART_COST[WORK]
@@ -167,13 +184,16 @@ function minerBody(energyAvailable, rcl) {
     return body([works, carries, moves], [WORK, CARRY, MOVE])
 }
 
-function upgraderBody(energyAvailable, rcl, room) {
+function upgraderBody(energyAvailable, rcl, room, firstRoom) {
     const controller = room.controller
     const isBoosted = controller.effects && controller.effects.length > 0
     const boost = isBoosted ? 
         POWER_INFO[PWR_OPERATE_CONTROLLER].effect[controller.effects[0].level - 1] : 0
     const maxWorks = CONTROLLER_MAX_UPGRADE_PER_TICK + boost
     const types = [WORK, CARRY, MOVE]
+    if(firstRoom && rcl < 3){
+        return scalingBody([1, 1, 2], types, energyAvailable)
+    }
     if (rcl in [6, 7]) { // use boost ratio 5 work, 3 carry
         return scalingBody([5, 3, 4], [WORK, CARRY, MOVE], energyAvailable)
     } else if (isBoosted) {

@@ -80,7 +80,9 @@ var rT = {
                             || (structure.structureType == STRUCTURE_TOWER && structure.energy < (structure.energyCapacity - 400)))
                 )
             },
-            maxOps: 10
+            maxOps: 100,
+            swampCost: 1,
+            plainCost: 1
         })
     },
 

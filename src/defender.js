@@ -19,7 +19,8 @@ var rD = {
     /** @param {Creep} creep **/
     run: function(creep) {//modified harasser
         const city = creep.memory.city
-        if(Game.spawns[city].room.controller.level == 8){
+        if(Game.spawns[city].room.controller.level > 1){
+            const holdPoint = Game.spawns[city].room.controller.level == 8 ? 11 : 30
             //rcl8 runs new experimental defender
             //creep is mostly RA, with a tiny bit of heal.
             //boosted variant has one tough part as well
@@ -39,7 +40,7 @@ var rD = {
                 rD.boost(creep)
                 break
             case CS.ENGAGE:
-                if(!rH.maybeRetreat(creep, hostiles) && hostiles.length && creep.pos.inRangeTo(Game.spawns[city], 11)){
+                if(!rH.maybeRetreat(creep, hostiles) && hostiles.length && creep.pos.inRangeTo(Game.spawns[city], holdPoint)){
                     rH.aMove(creep, hostiles)
                 }
                 break
@@ -97,7 +98,11 @@ var rD = {
         if(!creep.memory.anger){//the more angry the creep gets, the more aggressive it'll get
             creep.memory.anger = 0//anger increases when hostiles run away, and decreases when hostiles give chase (see rH.aMove)
         }
-        creep.memory.state = CS.BOOST
+        if(creep.room.controller.level == 8){
+            creep.memory.state = CS.BOOST
+        } else {
+            creep.memory.state = CS.ENGAGE
+        }
     },
 
     boost: function(creep){

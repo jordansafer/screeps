@@ -54,9 +54,11 @@ var rB = {
 
     getEnergy: function(creep) {
         var location = rB.getLocation(creep)
-        if (a.withdraw(creep, location) == ERR_NOT_ENOUGH_RESOURCES) {
+        if(location.store[RESOURCE_ENERGY] < 300){
             var targets = u.getWithdrawLocations(creep)
             creep.memory.target = u.getNextLocation(creep.memory.target, targets)
+        } else {
+            a.withdraw(creep, location)
         }
     },
 
@@ -95,7 +97,7 @@ var rB = {
                         || site.pos.y < plan.y - 3)
             }
             if(targets.length){
-                var targetsByCost = _.sortBy(targets, target => target.progressTotal)
+                var targetsByCost = _.sortBy(targets, target => target.progressTotal).reverse()
                 creep.memory.build = targetsByCost[0].id
                 return true
             }

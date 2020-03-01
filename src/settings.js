@@ -1,7 +1,7 @@
 
 
 var settings = {
-    allies: ["Atanner"],
+    allies: ["qnz", "Robalian"],
     roomplanTime: 500,
     roomplanOffset: 155,
     creditMin: 1000000, //min credits needed to start buying energy
@@ -20,7 +20,7 @@ var settings = {
         repair: 3000, //repairing walls in a room
         rclMultiplier: 200, // scale: rcl0 = 5k, 1 => 4.8k etc
         processPower: 3200,
-        growthLimit: 0.25, // average bucket growth limit over 100+ ticks
+        growthLimit: 100, // average bucket growth limit over 100+ ticks
     },
     energy: {//energy thresholds
         rcl8upgrade: 620000,
@@ -28,11 +28,11 @@ var settings = {
         powerMine: 650000
     },
     max: {
-        upgraders: 3, // low rcl
-        runners: 4, // low rcl
+        upgraders: 10, // low rcl
+        runners: 6, // low rcl
         builders: 3,
         transporters: 2,
-        miners: 1, // rcl8
+        miners: 2, // rcl8
     },
     powerMiningRange: 3,
     miningRange: 7,

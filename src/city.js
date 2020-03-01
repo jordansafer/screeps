@@ -28,6 +28,7 @@ var link = require("./link")
 var settings = require("./settings")
 var rr = require("./roles")
 var e = require("./error")
+var rQ = require("./quad")
 
 
 function makeCreeps(role, type, target, city, unhealthyStore) {
@@ -211,7 +212,9 @@ function runTowers(city){
             return
         }
         var towers = _.filter(Game.structures, (structure) => structure.structureType == STRUCTURE_TOWER && structure.room.memory.city == city)
-        var hostileCreep = Game.spawns[city].room.find(FIND_HOSTILE_CREEPS)
+        var hostileCreep = Game.spawns[city].room.find(FIND_HOSTILE_CREEPS, {filter: (enemy) => { 
+            return (enemy) && !settings.allies.includes(enemy.owner.username)
+        }})
         var injuredCreep = Game.spawns[city].room.find(FIND_MY_CREEPS, {filter: (injured) => { 
             return (injured) && injured.hits < injured.hitsMax
         }})
@@ -522,7 +525,7 @@ function updateDefender(rooms, memory, rcl8) {
                     || creep.getActiveBodyparts(RANGED_ATTACK) > 0 
                     || creep.getActiveBodyparts(CLAIM) > 0
                     || creep.getActiveBodyparts(HEAL) > 0)
-            var invaders = _.reject(allBadCreeps, creep => creep.owner.username == "Source Keeper")
+            var invaders = _.reject(allBadCreeps, creep => creep.owner.username == "Source Keeper" || creep.owner.username in settings.allies)
             return invaders.length
         })
         memory[rD.name] = _.sum(enemyCounts)

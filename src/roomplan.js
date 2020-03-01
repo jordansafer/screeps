@@ -29,10 +29,15 @@ const p = {
     },
 
     buildConstructionSites: function() {
-        const firstRoom = Object.keys(Game.rooms).length == 1
-
+        const firstRoom = Game.gcl.level == 1
         Object.keys(Game.rooms).forEach((roomName) => {
             var room = Game.rooms[roomName]
+            if (firstRoom){
+                const level = room.controller.level
+                if(room.controller.level == 1){
+                    return
+                }
+            }
             if (firstRoom && !room.memory.plan) {
                 const spawnPos = Game.spawns[roomName + "0"].pos
                 room.memory.plan = {}
@@ -59,10 +64,16 @@ const p = {
                         if (Game.cpu.getUsed() + 20 > Game.cpu.tickLimit) {
                             return
                         }
-                        p.buildConstructionSite(room, structureType, pos, name)
+                        if (firstRoom && room.controller.level < 3 && structureType == STRUCTURE_ROAD){
+                            //
+                        } else {
+                            p.buildConstructionSite(room, structureType, pos, name)
+                        }
                     })
                 })
-                p.buildRoads(room, plan)
+                if (!firstRoom || !(room.controller.level < 3)){
+                    p.buildRoads(room, plan)
+                }
                 if (room.controller.level >= 6) {
                     p.buildExtractor(room)
                 }

@@ -35,9 +35,11 @@ var rU = {
         var targets = u.getWithdrawLocations(creep)
         location = location || targets[creep.memory.target]
         location = location || Game.spawns[city]
-
-        if (actions.withdraw(creep, location) == ERR_NOT_ENOUGH_RESOURCES) {
+        
+        if(location.structureType != STRUCTURE_LINK && location.store[RESOURCE_ENERGY] < 300){
             creep.memory.target = u.getNextLocation(creep.memory.target, targets)
+        } else {
+            actions.withdraw(creep, location)
         }
     },
 
