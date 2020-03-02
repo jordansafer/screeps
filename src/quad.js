@@ -1,5 +1,5 @@
 //const sq = require("./spawnQueue"); sq.initialize(Game.spawns['E7N50']); sq.schedule(Game.spawns['E7N50'], 'quad')
-
+const u = require("./utils")
 const a = require("./actions")
 
 var CreepState = {
@@ -92,7 +92,7 @@ var rQ = {
                 let startPos = null
                 for(let i  = 0; i < 50; i++){
                     for(let j = 0; j < 50; j++){
-                        if((i == 0 || j == 0 || i == 49 || j == 49) && matrix.get(i,j) == 1){
+                        if((i == 0 || j == 0 || i == 49 || j == 49) && matrix.get(i,j) == 2){
                             startPos = new RoomPosition(i, j, creep.pos.roomName)
                         }
                     }
@@ -206,6 +206,9 @@ var rQ = {
                     if(costs.get(Math.max(0, i - 1), j) < posCost){//LEFT
                         costs.set(Math.max(0, i - 1), j, posCost)
                     }
+                    if(u.isOnEdge(new RoomPosition(i, j, roomName))){
+                        costs.set(i, j, posCost + 1)
+                    }
                 }
             }
             Cache[roomName].quadMatrix = costs
@@ -219,33 +222,26 @@ var rQ = {
         //captain should preemptively send everybody in YOLO mode if it is at 1 ttl
 
         //explore exits
-        const captain = creep
-        const private0 = Game.getObjectById(captain.memory.privates[0])
-        const private1 = Game.getObjectById(captain.memory.privates[1])
-        const private2 = Game.getObjectById(captain.memory.privates[2])
+        const quad = [creep, Game.getObjectById(creep.memory.privates[0]),
+                Game.getObjectById(creep.memory.privates[1]),
+                Game.getObjectById(creep.memory.privates[2])]
 
-        if(!private0 || !private1 || !private2){
-            captain.say("yolo")
-            return
-        }
-
-        if(!Cache[captain.room.name] || !Cache[captain.room.name].quadMatrix){
-            rQ.getRoomMatrix(captain.room.name)
-        }
-        if(!Cache[private1.room.name] || !Cache[private1.room.name].quadMatrix){
-            rQ.getRoomMatrix(private1.room.name)
-        }
-        if(!Cache[private0.room.name] || !Cache[private0.room.name].quadMatrix){
-            rQ.getRoomMatrix(private0.room.name)
-        }
-        if(!Cache[private2.room.name] || !Cache[private2.room.name].quadMatrix){
-            rQ.getRoomMatrix(private2.room.name)
+        for(let i = 0; i < quad.length; i++){
+            if(!quad[i]){
+                console.log("yolo")
+                return
+            }
+            if(!Cache[quad[i].room.name] || !Cache[quad[i].room.name].quadMatrix){
+                rQ.getRoomMatrix(quad[i].room.name)
+            }
         }
 
-        const spawn = Game.spawns[captain.memory.city]
-        if(captain.room.name == spawn.room.name){
+        const status = rQ.getQuadStatus(quad)
+        const leader = status.leader
+        const spawn = Game.spawns[leader.memory.city]
+        if(leader.room.name == spawn.room.name){
             //if at home, choose an exit and go to it
-            const exits = Game.map.describeExits(captain.room.name)
+            const exits = Game.map.describeExits(leader.room.name)
             const exitList = Object.keys(exits)
             let targetRoom = null
             let exit = null
@@ -258,13 +254,11 @@ var rQ = {
                     exit = exitList[i] 
                 }
             }
-            console.log(rQ.getRoomMatrix("E6N5"))
-            console.log(targetRoom)
             if(targetRoom){
                 //go to targetRoom
                 //find exit point
                 targetPos = null
-                const matrix = rQ.getRoomMatrix(captain.pos.roomName)
+                const matrix = rQ.getRoomMatrix(leader.pos.roomName)
                 let istart = 0
                 let irange = 1
                 let jstart = 0
@@ -282,75 +276,185 @@ var rQ = {
                 }
                 for(let i  = istart; i < irange + istart; i++){
                     for(let j = jstart; j < jrange + jstart; j++){
-                        if((i == 0 || j == 0 || i == 49 || j == 49) && (matrix.get(i,j) == 1 || matrix.get(i,j) == 5)){
-                            targetPos = new RoomPosition(i, j, creep.pos.roomName)
+                        if((i == 0 || j == 0 || i == 49 || j == 49) && matrix.get(i,j) < 7){
+                            targetPos = new RoomPosition(i, j, leader.pos.roomName)
                         }
                     }
                 }
-
                 //move to exit point
+                console.log(targetPos)
                 if(!targetPos){
                     return
                 }
-                const search = PathFinder.search(captain.pos, {pos: targetPos, range: 0}, {
-                    maxRooms: 2,
-                    roomCallback: function(roomName){
-                        let costs = rQ.getRoomMatrix(captain.pos.roomName)
-                        if(Game.rooms[roomName]){
-                            //if we have vision, add creeps to matrix, otherwise just return it plain
-                            Game.rooms[roomName].find(FIND_CREEPS).forEach(function(creep) {
-                                if(!creep.memory || creep.memory.role != 'quad'){
-                                    //quad cannot move to any pos that another creep is capable of moving to
-                                    for(let i = Math.max(0 , creep.pos.x - 2); i < Math.min(50, creep.pos.x + 2); i++){
-                                        for(let j = Math.max(0 , creep.pos.y - 2); j < Math.min(50, creep.pos.y + 2); j++){
-                                            costs.set(i, j, 255)
-                                        }
-                                    }
-                                }
-                            });
-                        }
-                        for(let i = 0; i < 50; i++){
-                            for(let j = 0; j < 50; j++){
-                                new RoomVisual(roomName).circle(i, j, {fill: 'transparent', radius: costs.get(i,j)/255*0.5, stroke: 'red'})
-                            }
-                        }
-                        return costs
-                    }
-                })
-                console.log(search.path.length)
-                for(let i = 0; i < search.path.length; i++){
-                    new RoomVisual(captain.pos.roomName).circle(search.path[i], {fill: 'transparent', radius: 0.3, stroke: 'green'})
+                Log.info(JSON.stringify(targetPos))
+                const status = rQ.getQuadStatus(quad)
+                if(!status.leader){
+                    return
                 }
-                rQ.moveByPath(captain, private0, private1, private2, search.path)
-
+                rQ.move(quad, targetPos, status, 0)
             } else {
                 //go to rally point (at home)
             }
         }
     },
 
-    moveByPath: function(captain, private0, private1, private2, path){
-        if(!captain.fatigue && !private0.fatigue && !private1.fatigue && !private2.fatigue){
-            if(captain.pos.isNearTo(path[0])){
-                const direction = captain.pos.getDirectionTo(path[0])
-                captain.move(direction)
-                private0.move(direction)
-                private1.move(direction)
-                private2.move(direction)
-            } else {
-                for(let i = 0; i < path.length; i++){
-                    if(captain.pos.isEqualTo(path[i])){
-                        //move to next spot
-                        const direction = path[i].getDirectionTo(path[i + 1])
-                        captain.move(direction)
-                        private0.move(direction)
-                        private1.move(direction)
-                        private2.move(direction)
-                    }
+    moveByPath: function(leader, quad, path){
+        for(let i = 0; i < quad.length; i++){
+            if(quad[i].fatigue){
+                return
+            }
+        }
+        let direction = null
+        if(leader.pos.isNearTo(path[0])){
+            direction = leader.pos.getDirectionTo(path[0])
+        } else {
+            for(let i = 0; i < path.length; i++){
+                if(leader.pos.isEqualTo(path[i]) && i < path.length - 1){
+                    direction = path[i].getDirectionTo(path[i + 1])
+                    break
                 }
             }
         }
+        if(direction){
+            for(let i = 0; i < quad.length; i++){
+                quad[i].move(direction)
+            }
+        }
+    },
+
+    move: function(quad, target, status, range){
+        if(!range){
+            range = 0
+        }
+        const search = PathFinder.search(status.leader.pos, {pos: targetPos, range: 0}, {
+            maxRooms: 4,
+            roomCallback: function(roomName){
+                let costs = rQ.getRoomMatrix(status.leader.pos.roomName)
+                if(status.roomEdge){
+                    //if formation is on a roomEdge, and any of members is in a room but not on it's edge, we cannot move into that room
+                    //unless they are all in that room
+                    for(let i = 0; i < quad.length; i++){
+                        if(!status.sameRoom && quad[i].pos.roomName == roomName && !u.isOnEdge(quad[i].pos)){
+                            return false
+                        }
+                    }
+                    //otherwise, if this is leader's room, block necessary positions to limit motion in appropriate fashion
+                    //see: getQuadStatus()
+                    if(status.leader.pos.roomName == roomName){
+                        const leader = status.leader
+                        for(let i = -1; i < 2; i++){
+                            for(let j = -1; j < 2; j++){
+                                if(leader.pos.x + i > 0 && leader.pos.x + i < 50 && leader.pos.y + j > 0 && leader.pos.y + j < 50){
+                                    const direction = leader.pos.getDirectionTo(new RoomPosition(leader.pos.x + i, leader.pos.y + j, roomName))
+                                    let tolerance = 0
+                                    if(status.sameRoom){
+                                        tolerance = 1
+                                    }
+                                    if(Math.abs(direction - status.roomEdge) > tolerance && (!tolerance || Math.abs(direction - status.roomEdge) != 7)){
+                                        //because TOP == 1 and TOP_LEFT == 8, a difference of 7 actually signals adjacency
+                                        //unwalkable
+                                        costs.set(leader.pos.x + i, leader.pos.y + j, 255)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                if(Game.rooms[roomName]){
+                    //if we have vision, add creeps to matrix, otherwise just return it plain
+                    let quadNames = []
+                    for(let i = 0; i < quad.length; i++){
+                        quadNames.push(quad[i].name)
+                    }
+                    Game.rooms[roomName].find(FIND_CREEPS).forEach(function(creep) {
+                        if(!quadNames.includes(creep.name)){
+                            //quad cannot move to any pos that another creep is capable of moving to
+                            for(let i = Math.max(0 , creep.pos.x - 2); i < Math.min(50, creep.pos.x + 2); i++){
+                                for(let j = Math.max(0 , creep.pos.y - 2); j < Math.min(50, creep.pos.y + 2); j++){
+                                    costs.set(i, j, 255)
+                                }
+                            }
+                        }
+                    });
+                }
+                for(let i = 0; i < 50; i++){
+                    for(let j = 0; j < 50; j++){
+                        new RoomVisual(roomName).circle(i, j, {fill: 'transparent', radius: costs.get(i,j)/255*0.5, stroke: 'red'})
+                    }
+                }
+                return costs
+            }
+        })
+        console.log(search.path.length)
+        for(let i = 0; i < search.path.length; i++){
+            new RoomVisual(search.path[i].roomName).circle(search.path[i], {fill: 'transparent', radius: 0.3, stroke: 'green'})
+        }
+        rQ.moveByPath(status.leader, quad, search.path)
+    },
+
+    getQuadStatus: function(quad){//return squad leader, roomEdge status, and if creeps are all in the same room
+        //we need to know which creep is in which position because all pathfinding must be done based on the creep in the top left
+        //roomEdge status determines which directions we can move
+        //For Example: if roomEdge status == RIGHT && creeps are not all in the same room, we can only move RIGHT,
+        //however, if creeps are all in the same room, we can move RIGHT, TOP_RIGHT, or BOTTOM_RIGHT
+        //halting on a roomEdge will always result in the edge flipping the following tick i.e. if roomEdge == RIGHT, next tick it'll be LEFT
+        let leader = null
+        let highRoom = [] //creeps that are in the leftmost or topmost room of creeps in squad
+        for(let i = 0; i < quad.length; i++){//if a creep's room is higher than any other squad member's room, it must be in the highest room
+            const coords = u.roomNameToPos(quad[i].pos.roomName)
+            for(let j = 0; j < quad.length; j++){
+                const compCoords = u.roomNameToPos(quad[j].pos.roomName)
+                if(coords[0] < compCoords[0] || coords[1] > compCoords[1]){
+                    highRoom.push(quad[i])
+                    break
+                }
+            }
+        }
+        //if highRoom is empty, all creeps are in highRoom
+        if(!highRoom.length){
+            highRoom = quad
+        }
+        //amongst creeps in highroom, find toppest leftest one
+        for(let i = 0; i < highRoom.length; i++){
+            let topLeft = true
+            for(let j = 0; j < highRoom.length; j++){//if creep is not top, left, or top left of every other creep, it is not the leader
+                if(highRoom[j].pos.getDirectionTo(highRoom[i]) != LEFT 
+                    && highRoom[j].pos.getDirectionTo(highRoom[i]) != TOP_LEFT 
+                    && highRoom[j].pos.getDirectionTo(highRoom[i]) != TOP
+                    && !highRoom[j].pos.isEqualTo(highRoom[i])){
+                    topLeft = false
+                }
+            }
+            if(topLeft){
+                leader = highRoom[i]
+                break
+            }
+        }
+
+        //determine roomEdge status
+        let roomEdge = null //default is null, if we are not on an edge it should stay that way
+        for(let i = 0; i < quad.length; i++){
+            if(u.isOnEdge(quad[i].pos)){//if a creep from the squad is on an edge, it can determine which edge we are on
+                if(quad[i].pos.x == 49){
+                    roomEdge = LEFT
+                } else if(quad[i].pos.x == 0){
+                    roomEdge = RIGHT
+                } else if (quad[i].pos.y == 49){
+                    roomEdge = BOTTOM
+                } else {
+                    roomEdge = TOP
+                }
+                break
+            }
+        }
+        let result = {}
+        result.leader = leader
+        result.roomEdge = roomEdge
+        //if all of the creeps in the squad are in the highest room, they must all be in the same room
+        result.sameRoom = highRoom.length < quad.length ? false : true
+        return result
     }
+
     
 }
 module.exports = rQ

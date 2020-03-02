@@ -1,6 +1,7 @@
 var a = require("./actions")
 var u = require("./utils")
 var rH = require("./harasser")
+var settings = require("./settings")
 var CreepState = {
     START: 1,
     BOOST: 2,
@@ -30,7 +31,7 @@ var rD = {
             }
             let hostiles = []
             if(creep.memory.state != CS.DORMANT){
-                hostiles = creep.room.find(FIND_HOSTILE_CREEPS)
+                hostiles = _.filter(creep.room.find(FIND_HOSTILE_CREEPS), c => !settings.allies.includes(c.owner.username))
             }
             switch (creep.memory.state) {
             case CS.START:

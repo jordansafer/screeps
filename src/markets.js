@@ -410,7 +410,7 @@ var markets = {
         markets.sendComs(termCities)
         //relocate base mins (every 1k ticks)
         if(Game.time % 1000 === 0){
-            markets.relocateBaseMins(termCities)
+            //markets.relocateBaseMins(termCities)
         }
         if(Game.time % 1000 === 40){
             markets.distributeOps(termCities)
@@ -474,14 +474,14 @@ var markets = {
                 //if any base mineral (besides ghodium) is low, an order for it will be placed on the market. If an order already exists, update quantity
                 //if an order already exists and is above threshold (arbitrary?), increase price
                 //buy minerals as needed
-                markets.buyMins(termCities[i], baseMins)
+                //markets.buyMins(termCities[i], baseMins)
                 if(!level && !termUsed){
-                    termUsed = markets.sellBars(termCities[i], bars, buyOrders)
+                    //termUsed = markets.sellBars(termCities[i], bars, buyOrders)
                 }
                 //buy/sell energy
-                termUsed = markets.processEnergy(termCities[i], termUsed, highEnergyOrder, energyOrders)
+                //termUsed = markets.processEnergy(termCities[i], termUsed, highEnergyOrder, energyOrders)
                 //sell products
-                termUsed = markets.sellProducts(termCities[i], termUsed, buyOrders, highTier)
+                //termUsed = markets.sellProducts(termCities[i], termUsed, buyOrders, highTier)
             }
         }
     }

@@ -29,9 +29,11 @@ var rC = {
         }
 
         if (flag.pos.roomName != creep.pos.roomName) {
-            rC.cheapMove(creep, flag)
+            //rC.cheapMove(creep, flag)
+            u.multiRoomMove(creep, flag.pos)
         } else if (!creep.pos.isNearTo(creep.room.controller.pos)) {
-            rC.cheapMove(creep, creep.room.controller.pos)
+            //cheapMove(creep, creep.room.controller.pos)
+            u.multiRoomMove(creep, creep.room.controller.pos)
         } else { 
             actionFn(creep)
         }

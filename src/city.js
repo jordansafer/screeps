@@ -28,7 +28,7 @@ var link = require("./link")
 var settings = require("./settings")
 var rr = require("./roles")
 var e = require("./error")
-var rQ = require("./quad")
+//var rQ = require("./quad")
 
 
 function makeCreeps(role, type, target, city, unhealthyStore) {
@@ -62,12 +62,6 @@ function makeCreeps(role, type, target, city, unhealthyStore) {
     Game.creeps[name].memory.new = true
 }
 
-/// Temp function. Delete in 1 day
-function trueRole(creep) {
-    return creep.memory.role === "Upgrader" ? "upgrader" : creep.memory.role
-}
-
-
 //runCity function
 function runCity(city, creeps){
     const spawn = Game.spawns[city]
@@ -85,7 +79,7 @@ function runCity(city, creeps){
 
     // Get counts for roles by looking at all living and queued creeps
     var nameToRole = _.groupBy(allRoles, role => role.name) // map from names to roles
-    var counts = _.countBy(creeps, trueRole) // lookup table from role to count
+    var counts = _.countBy(creeps, creep => creep.memory.role) // lookup table from role to count
     const queuedCounts = sq.getCounts(spawn)
     _.forEach(roles, role => {
         const liveCount = counts[role.name] || 0
@@ -105,7 +99,7 @@ function runCity(city, creeps){
     }
 
     if (nextRole) {
-        //Log.info(JSON.stringify(nextRole));
+        //Log.info(JSON.stringify(Object.entries(nextRole)))
         makeCreeps(nextRole.name, nextRole.type, nextRole.target(), city, unhealthyStore)
     }
 
@@ -117,7 +111,7 @@ function runCity(city, creeps){
     _.forEach(creeps, (creep) => {
         Cache[room.name] = Cache[room.name] || {} // initialize if needed
         Cache[room.name].enemy = u.enemyOwned(creep.room)
-        nameToRole[trueRole(creep)][0].run(creep)
+        nameToRole[creep.memory.role][0].run(creep)
     })
     
     link.run(room)
@@ -190,7 +184,7 @@ function makeEmergencyCreeps(extensions, creeps, city, rcl8, emergency) {
 
         if (_.filter(creeps, creep => creep.memory.role == "transporter") < 1){
             Log.info("Making Emergency Transporter")
-            makeCreeps("transporter", "basic", 0, city)
+            makeCreeps("transporter", "erunner", 0, city)
         }
 
         // TODO disable if links are present (not rcl8!! links may be missing for rcl8)
@@ -525,7 +519,7 @@ function updateDefender(rooms, memory, rcl8) {
                     || creep.getActiveBodyparts(RANGED_ATTACK) > 0 
                     || creep.getActiveBodyparts(CLAIM) > 0
                     || creep.getActiveBodyparts(HEAL) > 0)
-            var invaders = _.reject(allBadCreeps, creep => creep.owner.username == "Source Keeper" || creep.owner.username in settings.allies)
+            var invaders = _.reject(allBadCreeps, creep => creep.owner.username == "Source Keeper" || settings.allies.includes(creep.owner.username))
             return invaders.length
         })
         memory[rD.name] = _.sum(enemyCounts)
