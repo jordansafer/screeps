@@ -233,6 +233,9 @@ var rF = {
             return 5
         }
         const storage = creep.room.storage
+        if(!creep.room.terminal){
+            return 0
+        }
         if (storage && storage.store.energy > 150000 && creep.room.terminal.store.energy < 50000 && _.sum(creep.room.terminal.store) < 295000){
             return 1
         }

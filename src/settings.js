@@ -8,7 +8,7 @@ var settings = {
     miningDisabled: ["W2N240", "E2S310"], //cities that will attempt any highway mining
     ghodiumAmount: 15000, //threshold to stop producing ghodium
     boostAmount: 12000, //threshold to stop producing boosts
-    wallHeight: 10000000,
+    wallHeight: [0, 0, 0, 100000, 500000, 1000000, 5000000, 10000000],
     bucket: {//minimum bucket thresholds
         powerMining: 8500,
         powerRange: 3000, //this keeps all power mining from shutting off at once. 
@@ -25,7 +25,8 @@ var settings = {
     energy: {//energy thresholds
         rcl8upgrade: 620000,
         processPower: 600000,
-        powerMine: 650000
+        powerMine: 650000,
+        repair: 200000
     },
     max: {
         upgraders: 10, // low rcl

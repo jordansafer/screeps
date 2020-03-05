@@ -74,12 +74,14 @@ const p = {
                 if (!firstRoom || !(room.controller.level < 3)){
                     p.buildRoads(room, plan)
                 }
+                if (room.controller.level >= 5) {
+                    p.buildWalls(room, plan)
+                }
                 if (room.controller.level >= 6) {
                     p.buildExtractor(room)
+                    p.buildSourceLinks(room)
                 }
                 if (room.controller.level >= 7){
-                    p.buildWalls(room, plan)
-                    p.buildSourceLinks(room)
                     p.buildControllerLink(room)
                 }
             }
@@ -182,9 +184,9 @@ const p = {
             let wallNeeded = false
             for(let j = 0; j < roomExits.length; j++){
                 if(roomExits[j].length){
-                    //we only need to path to one of the exit points (it does not matter which one)
+                    //we only need to path to one of the exit points (it does not matter which one), sike yeah we have to try them all
                     const origin = new RoomPosition(wallSpots[i].x, wallSpots[i].y, room.name)
-                    const path = PathFinder.search(origin, roomExits[j][0], {
+                    const path = PathFinder.search(origin, roomExits[j], {
                         plainCost: 1,
                         swampCost: 1,
                         maxOps: 1000,

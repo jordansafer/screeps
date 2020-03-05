@@ -9,8 +9,10 @@ var rM = {
     /** @param {Creep} creep **/
     run: function(creep) {
         // Use the spawn queue to set respawn at 20 ttl
-        if(creep.ticksToLive == 20 && Game.spawns[creep.memory.city].memory.remoteMiner > 0) {
-            sq.respawn(creep)
+        if(creep.ticksToLive == (creep.body.length * 3) + 5 && Game.spawns[creep.memory.city].memory.remoteMiner > 0) {
+            if(_.filter(creep.room.find(FIND_MY_CREEPS), c => c.memory.role == rM.name).length <= 2){
+                sq.respawn(creep)
+            }
         }
         if(creep.hits < creep.hitsMax){
             Game.spawns[creep.memory.city].memory.towersActive = true
@@ -26,7 +28,7 @@ var rM = {
                 rM.harvestTarget(creep)
             }
             if (Game.time % 50 === 0){
-                if (Game.spawns[creep.memory.city].room.controller.level > 6){
+                if (Game.spawns[creep.memory.city].room.controller.level >= 6){
                     if (!creep.memory.link){
                         //find link
                         var source = Game.getObjectById(creep.memory.source)

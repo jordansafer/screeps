@@ -16,14 +16,17 @@ function getRecipe(type, energyAvailable, room){
     d.defender = defenderBody(energyAvailable, rcl)
 
     // used at rcl 4+
+    d.robber = scalingBody([1, 1], [CARRY, MOVE], energyAvailable)
     d.spawnBuilder = scalingBody([2, 3, 5], [WORK, CARRY, MOVE], energyAvailable)
     d.trooper = scalingBody([1, 1], [RANGED_ATTACK, MOVE], energyAvailable)
+    d.skMiner = body([10, 1, 11], [WORK, CARRY, MOVE])
 
     // used at rcl 5+
     d.ferry = scalingBody([2, 1], [CARRY, MOVE], energyAvailable, 30)
 
     // rcl 8 only
     d.powerMiner = body([20, 20], [MOVE, ATTACK])
+    d.scout = body([1], [MOVE])
     d.bigMedic = body([11, 10, 29], [TOUGH, MOVE, HEAL])
     d.bigBreaker = body([10, 30, 10], [TOUGH, WORK, MOVE])
     d.bigTrooper = body([16, 24, 10], [TOUGH, RANGED_ATTACK, MOVE])
@@ -40,7 +43,7 @@ function getRecipe(type, energyAvailable, room){
         //lvl 4 recipes
         d["defender"] = body([5, 1, 6], [RANGED_ATTACK, HEAL, MOVE])
         d["medic"] = body([2, 2], [MOVE, HEAL])
-        d["quad"] = body([1], [MOVE])
+        d["quad"] = body([5, 1, 6], [RANGED_ATTACK, HEAL, MOVE])
         d["harasser"] = body([5, 1, 6], [RANGED_ATTACK, HEAL, MOVE])
         break
     case 5:
@@ -49,7 +52,7 @@ function getRecipe(type, energyAvailable, room){
         d["medic"] = body([5, 5], [MOVE, HEAL])
         d["robber"] = body([15, 15], [CARRY, MOVE])
         d["harasser"] = body([6, 2, 8], [RANGED_ATTACK, HEAL, MOVE])
-        d["quad"] = body([1], [MOVE])
+        d["quad"] = body([6, 2, 8], [RANGED_ATTACK, HEAL, MOVE])
         break
     case 6:
         // lvl 6 recipes
@@ -58,10 +61,11 @@ function getRecipe(type, energyAvailable, room){
         d["medic"] = body([7, 7], [MOVE, HEAL])
         d["robber"] = body([20, 20], [CARRY, MOVE])
         d["harasser"] = body([14, 6, 20], [RANGED_ATTACK, HEAL, MOVE])
+        d["quad"] = body([7, 3, 10], [RANGED_ATTACK, HEAL, MOVE])
         break
     case 7:
         // lvl 7 recipes
-        d["defender"] = body([1, 1, 2], [RANGED_ATTACK, HEAL, MOVE])
+        d["defender"] = body([19, 6, 25], [RANGED_ATTACK, HEAL, MOVE])
         d["mineralMiner"] = body([22, 10, 16], [WORK, CARRY, MOVE])
         d["harasser"] = body([19, 6, 25], [RANGED_ATTACK, HEAL, MOVE])
         d["medic"] = body([5, 20, 15], [TOUGH, MOVE, HEAL])
@@ -169,7 +173,7 @@ function minerBody(energyAvailable, rcl) {
     // miners. at least 1 move. 5 works until we can afford 10
     let works = Math.floor((energyAvailable - BODYPART_COST[MOVE]) / BODYPART_COST[WORK])
     if (works >= 25 && rcl > 7) works = 25
-    else if (works >= 10 && rcl > 6) works = 10
+    else if (works >= 10 && rcl >= 6) works = 10
     else if (works >= 5) works = 5
     else works = Math.max(1, works)
     const energyAfterWorks = energyAvailable - works * BODYPART_COST[WORK]
@@ -177,13 +181,13 @@ function minerBody(energyAvailable, rcl) {
     const energyAfterMoves = energyAfterWorks - moves * BODYPART_COST[MOVE]
     
     // Figure out how many carries we can afford/will fill the link in fewest ticks
-    const carriesPerLinkFill = Math.ceil(LINK_CAPACITY / CARRY_CAPACITY)
+    const carriesPerLinkFill = Math.ceil(LINK_CAPACITY / CARRY_CAPACITY)/2
     const loadsNeeded = (c => c <= 0 ? Infinity : Math.ceil(carriesPerLinkFill / c))
     const carryChoices = [...Array(carriesPerLinkFill + 1).keys()] // range [0,n + 1]
         .filter(c => loadsNeeded(c) < loadsNeeded(c - 1)) // more carries => fewer loads?
         .filter(c => c <= energyAfterMoves / BODYPART_COST[CARRY])  // how many can we afford?
         .filter(c => works + c + moves <= MAX_CREEP_SIZE)
-    const carries = rcl >= 7 ? Math.max(...carryChoices, 0) : 0
+    const carries = rcl >= 6 ? Math.max(...carryChoices, 0) : 0
     return body([works, carries, moves], [WORK, CARRY, MOVE])
 }
 

@@ -23,7 +23,7 @@ var rB = {
             return
         }
         
-        if(Game.spawns[creep.memory.city].room.controller.level >= 7){//at RCL 8, only build, or repair ramparts and walls
+        if(Game.spawns[creep.memory.city].room.controller.level >= 5){//at RCL 8, only build, or repair ramparts and walls
             rB.decideWhetherToBuild(creep)
             if(creep.memory.building){
                 if(!rB.build(creep)){

@@ -28,6 +28,9 @@ var link = require("./link")
 var settings = require("./settings")
 var rr = require("./roles")
 var e = require("./error")
+var rS = require("./scout")
+var rSM = require("./skMiner")
+var rSR = require("./skRunner")
 //var rQ = require("./quad")
 
 
@@ -60,6 +63,7 @@ function makeCreeps(role, type, target, city, unhealthyStore) {
     Game.creeps[name].memory.target = target
     Game.creeps[name].memory.city = city
     Game.creeps[name].memory.new = true
+    return true
 }
 
 //runCity function
@@ -86,21 +90,23 @@ function runCity(city, creeps){
         const queueCount = queuedCounts[role.name] || 0
         counts[role.name] = liveCount + queueCount
     })
+    
+    
+    let usedQueue = true
+    const spawnQueueRoleName = sq.getNextRole(spawn)
+    let nextRole = spawnQueueRoleName ? nameToRole[spawnQueueRoleName][0] : undefined
 
-    //Log.info(JSON.stringify(roles));
-    let nextRole = _.find(roles, role => (typeof counts[role.name] == "undefined" && 
-        spawn.memory[role.name]) || (counts[role.name] < spawn.memory[role.name]))
-    // Log.info(Game.spawns[city].memory.rM);
-
-    // If quota is met, get a role from the spawn queue
     if (!nextRole) {
-        const spawnQueueRoleName = sq.getNextRole(spawn)
-        nextRole = spawnQueueRoleName ? nameToRole[spawnQueueRoleName][0] : undefined
+        nextRole = _.find(roles, role => (typeof counts[role.name] == "undefined" && 
+        spawn.memory[role.name]) || (counts[role.name] < spawn.memory[role.name]))
+        usedQueue = false
     }
-
+    
     if (nextRole) {
         //Log.info(JSON.stringify(Object.entries(nextRole)))
-        makeCreeps(nextRole.name, nextRole.type, nextRole.target(), city, unhealthyStore)
+        if(makeCreeps(nextRole.name, nextRole.type, nextRole.target(), city, unhealthyStore) && usedQueue){
+            spawn.memory.sq.shift()
+        }
     }
 
     // Print out each role & number of workers doing it
@@ -147,6 +153,7 @@ function updateCountsCity(city, creeps, rooms, claimRoom, unclaimRoom) {
         updateRunner(creeps, spawn, extensions, memory, rcl, emergencyTime)
         updateFerry(spawn, memory, rcl)
         updateMiner(rooms, rcl8, memory, spawn)
+        updateSK(spawn, memory)
     
         if (Game.time % 500 === 0) {
             runNuker(city)
@@ -158,6 +165,7 @@ function updateCountsCity(city, creeps, rooms, claimRoom, unclaimRoom) {
             updateMineralMiner(rcl, structures, spawn, memory)
             updatePowerSpawn(city, memory)
             updateStorageLink(spawn, memory, structures)
+            updateScout(spawn, memory)
         }
         makeEmergencyCreeps(extensions, creeps, city, rcl8, emergencyTime) 
     }
@@ -177,7 +185,7 @@ function makeEmergencyCreeps(extensions, creeps, city, rcl8, emergency) {
     const memory = Game.spawns[city].memory
 
     if (emergency || Game.time % checkTime == 0 && extensions >= 5) {
-        if (_.filter(creeps, creep => creep.memory.role == "remoteMiner") < 1 && memory.remoteMiner > 0){
+        if (_.filter(creeps, creep => creep.memory.role == "remoteMiner") < 1 && memory.remoteMiner > 0 && Game.spawns[city].room.energyAvailable < 650){
             Log.info("Making Emergency Miner")
             makeCreeps("remoteMiner", "lightMiner", 1, city)
         }
@@ -384,6 +392,41 @@ function emptyBoosters(memory){
     }
 }
 
+function updateScout(spawn, memory){
+    if(!memory.neighbors){
+        memory.neighbors = {}
+        const exits = Game.map.describeExits(spawn.pos.roomName)
+        for(let i = 0; i < Object.values(exits).length; i++){
+            memory.neighbors[Object.values(exits)[i]] = {}
+        }
+    }
+    for(let i = 0; i < Object.keys(memory.neighbors).length; i++){
+        if(!memory.neighbors[Object.keys(memory.neighbors)[i]].type){
+            memory[rS.name] = 1
+            return
+        }
+    }
+    memory[rS.name] = 0
+}
+
+function updateSK(spawn, memory){
+    memory[rSM.name] = 0
+    memory[rSR.name] = 0
+    if(memory.skSources){//only spawn sk miners if we have vision of the room AND there are no live hostiles
+        for(let i = 0; i < Object.keys(memory.skSources).length; i++){
+            const room = Game.rooms[memory.skSources[Object.keys(memory.skSources)[i]].roomName]
+            if(room){
+                if(!_.find(room.find(FIND_HOSTILE_CREEPS), c => (!settings.allies.includes(c.owner.username).length
+                    || c.getActiveBodyparts(ATTACK) || c.getActiveBodyparts(RANGED_ATTACK) && c.hits == c.hitsMax)
+                )){
+                    memory[rSM.name]++
+                    memory[rSR.name] += 2
+                }
+            }
+        }
+    }
+}
+
 function updateBigDefender(city, memory){
     //if towers active and need help, get boosters ready for a defender
     let danger = false
@@ -537,6 +580,10 @@ function updateMiner(rooms, rcl8, memory, spawn){
         }
         return
     }
+    if(memory.towersActive){
+        memory[rM.name] = 0
+        return
+    }
     if (!memory.sources) memory.sources = {}
     if (rcl8 && _.keys(memory.sources).length > 2) memory.sources = {}
     let miners = 0
@@ -567,7 +614,7 @@ function updateMineralMiner(rcl, buildings, spawn, memory) {
         if(extractor) {
             var cityObject = spawn.room
             var minerals = cityObject.find(FIND_MINERALS)
-            if(spawn.room.terminal && spawn.room.terminal.store[minerals[0].mineralType] < 6000){
+            if(spawn.room.terminal && spawn.room.terminal.store[minerals[0].mineralType] < 80000){
                 memory[rMM.name] = (minerals[0].mineralAmount < 1) ? 0 : 1
             }
         }
@@ -627,7 +674,7 @@ function updateBuilder(rcl, memory, spawn, rooms, rcl8) {
     const buildRooms = rcl8 ? [spawn.room] : rooms
     const constructionSites = _.flatten(_.map(buildRooms, room => room.find(FIND_MY_CONSTRUCTION_SITES)))
     var totalSites
-    if (rcl < 7) {
+    if (rcl < 5) {
         const buildings = _.flatten(_.map(buildRooms, room => room.find(FIND_STRUCTURES)))
         const repairSites = _.filter(buildings, structure => (structure.hits < (structure.hitsMax*0.3)) && (structure.structureType != STRUCTURE_WALL))
         totalSites = (Math.floor((repairSites.length)/10) + constructionSites.length)
@@ -644,12 +691,12 @@ function updateBuilder(rcl, memory, spawn, rooms, rcl8) {
     } else {
         memory[rB.name] = 0
     }
-    if(rcl >= 7 && Game.cpu.bucket > settings.bucket.repair && spawn.room.storage){
+    if(rcl >= 5 && Game.cpu.bucket > settings.bucket.repair && spawn.room.storage && spawn.room.storage.store.energy > settings.energy.repair){
         //make builder if lowest wall is below 5mil hits
         const walls = _.filter(spawn.room.find(FIND_STRUCTURES), struct => struct.structureType === STRUCTURE_RAMPART || struct.structureType === STRUCTURE_WALL)
         if(walls.length){//find lowest hits wall
             const sortedWalls = _.sortBy(walls, wall => wall.hits)
-            if(sortedWalls[0].hits < settings.wallHeight){
+            if(sortedWalls[0].hits < settings.wallHeight[rcl - 1]){
                 memory[rB.name]++
             }
         }
@@ -657,8 +704,8 @@ function updateBuilder(rcl, memory, spawn, rooms, rcl8) {
 }
 
 function updateRunner(creeps, spawn, extensions, memory, rcl, emergencyTime) {
-    if (rcl > 6 && !emergencyTime) {
-        memory[rR.name] = 0
+    if (rcl >= 6 && !emergencyTime) {
+        memory[rR.name] = Math.max(0, memory[rR.name] - 1)
         return
     }
     var miners = _.filter(creeps, creep => creep.memory.role == "miner" || creep.memory.role == "remoteMiner")
@@ -671,19 +718,8 @@ function updateRunner(creeps, spawn, extensions, memory, rcl, emergencyTime) {
 }
 
 function updateFerry(spawn, memory, rcl) {
-    if (rcl >= 7) {
+    if (rcl >= 6) {
         memory[rF.name] = 1
-        return
-    }
-    //check if we have a terminal
-    var terminal = spawn.room.terminal
-    var storage = spawn.room.storage
-    if (terminal && storage) {
-        if (terminal.store.energy < 50000 || Object.keys(storage.store).length > 1 || terminal.store.energy > 51000){
-            memory[rF.name] = 1
-        } else {
-            memory[rF.name] = 0
-        }
     } else {
         memory[rF.name] = 0
     }

@@ -20,6 +20,9 @@ var rM = require("./remoteMiner")
 var rD = require("./defender")
 var rPM = require("./powerMiner")
 var rQ = require("./quad")
+var rS = require("./scout")
+var rSM = require("./skMiner")
+var rSR = require("./skRunner")
 
 
 var rr = {
@@ -27,7 +30,7 @@ var rr = {
     getRoles: function() {
         return [rF, rD, rT, rM, rR, rU, rB, rQ, rMM, rC, rUC,
             rSB, rH, rBM, rD, rBB, rBT, rMe, rTr, rBr, rPM,
-            rRo, rDM]
+            rRo, rDM, rS, rSM, rSR]
     },
 
     getCoreRoles: function() {
