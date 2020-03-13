@@ -22,23 +22,26 @@ var T = {
             } else if(buffer){
                 damage = (damage - buffer) + (toughs * 50)
             }
-            if(damage > heal){
+            if(damage > heal + 300){
                 return hostiles[i]
             }
         }
         //if we make it here, none of the targets could be out gunned
         //shoot randomly every few ticks, maybe mess something up
-        if(Game.time % 12 === 0){
-            return hostiles[Math.floor(Math.random() * hostiles.length)]
-        }
+        // if(Game.time % 12 === 0){
+        //     return hostiles[Math.floor(Math.random() * hostiles.length)]
+        // }
         return null
     },
 
     calcTowerDamage: function(towers, target) {
+        if(!target.roomName){
+            target = target.pos
+        }
         let damage = 0
         for(let i = 0; i < towers.length; i++){
             if(towers[i].energy >= TOWER_ENERGY_COST){
-                const distance = towers[i].pos.getRangeTo(target.pos)
+                const distance = towers[i].pos.getRangeTo(target)
                 const damage_distance = Math.max(TOWER_OPTIMAL_RANGE, Math.min(distance, TOWER_FALLOFF_RANGE))
                 const steps = TOWER_FALLOFF_RANGE - TOWER_OPTIMAL_RANGE
                 const step_size = TOWER_FALLOFF * TOWER_POWER_ATTACK / steps

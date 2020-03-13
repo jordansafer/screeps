@@ -142,7 +142,7 @@ function updateCountsCity(city, creeps, rooms, claimRoom, unclaimRoom) {
     const logisticsTime = rcl8 && !emergencyTime ? 500 : 50
 
     // Always update defender
-    updateDefender(rooms, memory, rcl8)
+    updateDefender(spawn.room, memory, rcl8)
 
     if(Game.time % 200 == 0){
         updateMilitary(city, memory, rooms)
@@ -229,10 +229,19 @@ function runTowers(city){
         let damaged = null
         let repair = 0
         let target = null
-        if (Game.time % checkTime === 0) {
-            const needRepair = _.filter(Game.spawns[city].room.find(FIND_STRUCTURES), s => s.structureType != STRUCTURE_WALL
+        if (true) {
+            let needRepair = _.filter(Game.spawns[city].room.find(FIND_STRUCTURES), s => s.structureType != STRUCTURE_WALL
                 && s.structureType != STRUCTURE_RAMPART
                 && s.hitsMax - s.hits > TOWER_POWER_REPAIR)//structure must need at least as many hits missing as a minimum tower shot
+            //repair walls in active assault
+            if(Game.spawns[city].memory.towersActive){
+                const wallRepair = _.filter(Game.spawns[city].room.find(FIND_STRUCTURES), s => (s.structureType == STRUCTURE_WALL || 
+                    s.structureType == STRUCTURE_RAMPART) 
+                    && s.hits < settings.wallHeight[Game.spawns[city].room.controller.level - 2])
+                for(let i = 0; i < wallRepair.length; i++){
+                    needRepair.push(wallRepair[i])
+                }
+            }
             if(needRepair.length){
                 damaged =  _.min(needRepair, function(s) {
                     return s.hits/s.hitsMax
@@ -250,12 +259,13 @@ function runTowers(city){
         } else {
             Game.spawns[city].memory.towersActive = false
         }
+        //target = null
         for (let i = 0; i < towers.length; i++){
             if(target){
                 towers[i].attack(target)
             } else if (injured.length > 0 && !hostiles.length){
                 towers[i].heal(injured[0])
-            } else if (Game.time % checkTime === 0 && damaged){
+            } else if (damaged){
                 if(repair < TOWER_POWER_REPAIR * (1 - TOWER_FALLOFF)){
                     continue
                 }
@@ -411,7 +421,7 @@ function updateScout(spawn, memory){
 
 function updateSK(spawn, memory){
     memory[rSM.name] = 0
-    memory[rSR.name] = 0
+    let runners = 0
     if(memory.skSources){//only spawn sk miners if we have vision of the room AND there are no live hostiles
         for(let i = 0; i < Object.keys(memory.skSources).length; i++){
             const room = Game.rooms[memory.skSources[Object.keys(memory.skSources)[i]].roomName]
@@ -420,11 +430,12 @@ function updateSK(spawn, memory){
                     || c.getActiveBodyparts(ATTACK) || c.getActiveBodyparts(RANGED_ATTACK) && c.hits == c.hitsMax)
                 )){
                     memory[rSM.name]++
-                    memory[rSR.name] += 2
+                    runners = runners + 1.5
                 }
             }
         }
     }
+    memory[rSR.name] = Math.ceil(runners)
 }
 
 function updateBigDefender(city, memory){
@@ -547,25 +558,24 @@ function updateColonizers(city, memory, claimRoom, unclaimRoom) {
     }
     if (roomName == unclaimRoom) {
         memory[rUC.name] = 1
+    } else {
+        memory[rUC.name] = 0
     }
     //memory[rRo.name] = 0;
 }
 
 // Automated defender count for defense
-function updateDefender(rooms, memory, rcl8) {
+function updateDefender(room, memory, rcl8) {
     if (Game.time % 30 == 0) {
         if(rcl8){
             return
         }
-        var enemyCounts = _.map(rooms, room => {
-            var allBadCreeps = _.filter(room.find(FIND_HOSTILE_CREEPS), creep => creep.getActiveBodyparts(ATTACK) > 0
-                    || creep.getActiveBodyparts(RANGED_ATTACK) > 0 
-                    || creep.getActiveBodyparts(CLAIM) > 0
-                    || creep.getActiveBodyparts(HEAL) > 0)
-            var invaders = _.reject(allBadCreeps, creep => creep.owner.username == "Source Keeper" || settings.allies.includes(creep.owner.username))
-            return invaders.length
-        })
-        memory[rD.name] = _.sum(enemyCounts)
+        const invaders = _.filter(room.find(FIND_HOSTILE_CREEPS), creep => (creep.getActiveBodyparts(ATTACK) > 0
+            || creep.getActiveBodyparts(RANGED_ATTACK) > 0 
+            || creep.getActiveBodyparts(CLAIM) > 0
+            || creep.getActiveBodyparts(HEAL) > 0
+            && !settings.allies.includes(creep.owner.username)))
+        memory[rD.name] = invaders.length
     }
 }
 
@@ -643,8 +653,7 @@ function updateUpgrader(city, controller, memory, rcl8, creeps, rcl) {
             Game.spawns[city].memory[rU.name] = 0
         }
     } else {
-        if(rcl >= 6 && Game.spawns[city].room.storage && Game.spawns[city].room.storage.store[RESOURCE_ENERGY] < 250000
-                && Game.spawns[city].room.terminal && Game.spawns[city].room.terminal.store[RESOURCE_CATALYZED_GHODIUM_ACID] < 1000
+        if(Game.spawns[city].room.storage && Game.spawns[city].room.storage.store[RESOURCE_ENERGY] < 210000
                 && controller.ticksToDowngrade > CONTROLLER_DOWNGRADE[rcl.toString()]/2){
             memory[rU.name] = 0
             return
@@ -691,7 +700,7 @@ function updateBuilder(rcl, memory, spawn, rooms, rcl8) {
     } else {
         memory[rB.name] = 0
     }
-    if(rcl >= 5 && Game.cpu.bucket > settings.bucket.repair && spawn.room.storage && spawn.room.storage.store.energy > settings.energy.repair){
+    if(rcl >= 4 && Game.cpu.bucket > settings.bucket.repair && spawn.room.storage && spawn.room.storage.store.energy > settings.energy.repair){
         //make builder if lowest wall is below 5mil hits
         const walls = _.filter(spawn.room.find(FIND_STRUCTURES), struct => struct.structureType === STRUCTURE_RAMPART || struct.structureType === STRUCTURE_WALL)
         if(walls.length){//find lowest hits wall

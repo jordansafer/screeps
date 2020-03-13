@@ -125,8 +125,8 @@ var rT = {
 
     endLife: function(creep){
         if(creep.ticksToLive == 400){
-            const transporters = _.filter(creep.room.find(FIND_MY_CREEPS), c => c.memory.role == "transporter")
-            if(transporters.length < 2){
+            const transporters = _.filter(creep.room.find(FIND_MY_CREEPS), c => c.memory.role == rT.name)
+            if(transporters.length <= Game.spawns[creep.memory.city].memory[rT.name]){
                 sq.respawn(creep)
             }
         }

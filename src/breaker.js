@@ -133,12 +133,17 @@ var rBr = {
                 || creep.room.controller.my)){
             rBr.rally(creep, medic, flag)
         } else {
-            const target = creep.pos.findClosestByPath(structures, {range: 1})
-            if(target){
-                creep.moveTo(target, {range: 1})
+            if(Game.flags[creep.memory.city + "breakTarget"]){
+                creep.moveTo(Game.flags[creep.memory.city + "breakTarget"], {range: 1})
                 rBr.medicMove(creep, medic)
             } else {
-                rBr.rally(creep, medic, flag)//no valid targets, attempt to continue rally
+                const target = creep.pos.findClosestByPath(structures, {range: 1})
+                if(target){
+                    creep.moveTo(target, {range: 1})
+                    rBr.medicMove(creep, medic)
+                } else {
+                    rBr.rally(creep, medic, flag)//no valid targets, attempt to continue rally
+                }
             }
         }
     },

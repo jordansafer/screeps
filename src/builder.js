@@ -84,7 +84,7 @@ var rB = {
                 creep.memory.build = null
             }
         }
-        if(Game.time % 20 === 0){//occasionally scan for construction sites
+        if(Game.time % 20 === 0 && !Game.spawns[creep.memory.city].memory.towersActive){//occasionally scan for construction sites
             //if room is under siege (determined by presence of a defender),
             // ignore any construction sites outside of wall limits
             var targets = Game.spawns[creep.memory.city].room.find(FIND_MY_CONSTRUCTION_SITES)

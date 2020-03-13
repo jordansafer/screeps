@@ -8,6 +8,10 @@ var settings = {
     miningDisabled: ["W2N240", "E2S310"], //cities that will attempt any highway mining
     ghodiumAmount: 15000, //threshold to stop producing ghodium
     boostAmount: 12000, //threshold to stop producing boosts
+    boosts: [RESOURCE_CATALYZED_LEMERGIUM_ALKALIDE, RESOURCE_CATALYZED_KEANIUM_ALKALIDE,
+        RESOURCE_CATALYZED_LEMERGIUM_ALKALIDE,  RESOURCE_GHODIUM, 
+        RESOURCE_CATALYZED_GHODIUM_ALKALIDE, RESOURCE_CATALYZED_ZYNTHIUM_ACID, 
+        RESOURCE_CATALYZED_LEMERGIUM_ACID, RESOURCE_CATALYZED_GHODIUM_ACID],
     wallHeight: [0, 0, 0, 100000, 500000, 1000000, 5000000, 10000000],
     bucket: {//minimum bucket thresholds
         powerMining: 8500,

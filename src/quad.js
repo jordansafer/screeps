@@ -3,6 +3,7 @@ const u = require("./utils")
 const a = require("./actions")
 const rH = require("./harasser")
 const settings = require("./settings")
+const T = require("./tower")
 
 var CreepState = {
     START: 1,
@@ -141,13 +142,23 @@ var rQ = {
             return
         }
         //find captain
-        const captain = _.find(creep.room.find(FIND_MY_CREEPS), c => c.memory.captain)
-        if(captain){//sign up as a private and go brain dead
-            captain.memory.privates.push(creep.id)
-            creep.memory.state = CS.PRIVATE
-        } else {//if no captian, become captain
-            creep.memory.captain = true
-            creep.memory.privates = []
+        if(creep.ticksToLive <= 1499){
+            const captain = _.find(creep.room.find(FIND_MY_CREEPS), c => c.memory.captain && c.memory.privates.length < 3)
+            if(captain){//sign up as a private and go brain dead
+                captain.memory.privates.push(creep.id)
+                creep.memory.state = CS.PRIVATE
+            } else {//if no captian, become captain
+                creep.memory.captain = true
+                creep.memory.privates = []
+            }
+        }
+    },
+
+    getDamageMatrix: function(roomName){
+        if(Cache[roomName].damageMatrix){
+            return Cache[roomName].damageMatrix.clone()
+        } else{
+            return false
         }
     },
     
@@ -156,12 +167,13 @@ var rQ = {
         if(!Cache[roomName]){
             Cache[roomName] = {}
         }
-        if(Cache[roomName].quadMatrix){//if there is a matrix already, just copy and return
+        if(Cache[roomName].quadMatrix && (Game.time != 50 || !Game.rooms[roomName])){//if there is a matrix already, just copy and return
             return Cache[roomName].quadMatrix.clone()
         } else {//no matrix? make one if we have vision
             if(!Game.rooms[roomName]){
                 return false
             }
+            let damageMatrix = new PathFinder.CostMatrix
             let costs = new PathFinder.CostMatrix
             const terrain = new Room.Terrain(roomName)
             //fill matrix with default terrain values
@@ -214,6 +226,16 @@ var rQ = {
                     }
                 }
             }
+
+            const towers = _.filter(Game.rooms[roomName].find(FIND_HOSTILE_STRUCTURES), s => s.structureType == STRUCTURE_TOWER)
+            if(towers && towers.length){
+                for(let i = 0; i < 50; i++){
+                    for(let j = 0; j < 50; j++){
+                        damageMatrix.set(i, j, T.calcTowerDamage(towers, new RoomPosition(i, j, roomName)))
+                    }
+                }
+            }
+            Cache[roomName].damageMatrix = damageMatrix
             Cache[roomName].quadMatrix = costs
             return costs.clone()
         }
@@ -252,9 +274,9 @@ var rQ = {
 
 
 /****************************TEMPORARY LOGIC*********************************/
-        if(creep.ticksToLive == creep.body.length * 12 + 200){
+        if(creep.ticksToLive == creep.body.length * 12 + 200 && Game.flags[creep.memory.city + "quadRally"]){
             spawnQuad(creep.memory.city)
-        } else if(creep.hits < 200){
+        } else if(creep.hits < 200 && Game.flags[creep.memory.city + "quadRally"]){
             spawnQuad(creep.memory.city)
             creep.suicide()
         }
@@ -266,15 +288,50 @@ var rQ = {
             everythingByRoom.roomName = {}
             everythingByRoom.roomName.creeps = creepsByRoom[roomName]
             everythingByRoom.roomName.hostiles = _.filter(Game.rooms[roomName].find(FIND_HOSTILE_CREEPS), c => !settings.allies.includes(c.owner.username))
+            if(Game.rooms[roomName].controller && (Game.rooms[roomName].controller.my //this should be a utils function
+                || (Game.rooms[roomName].controller.owner && settings.allies.includes(Game.rooms[roomName].controller.owner.username)) 
+                || (Game.rooms[roomName].controller.reservation && settings.allies.includes(Game.rooms[roomName].controller.reservation.username)))){
+                everythingByRoom.roomName.structures = _.filter(Game.rooms[roomName].find(FIND_HOSTILE_STRUCTURES), s => !settings.allies.includes(s.owner.username))
+            } else {
+                everythingByRoom.roomName.structures = _.filter(Game.rooms[roomName].find(FIND_STRUCTURES), s => s.hits)
+            }
             if(everythingByRoom.roomName.hostiles.length){
                 for(let i = 0; i < everythingByRoom.roomName.hostiles.length; i++){
                     allHostiles.push(everythingByRoom.roomName.hostiles[i])
                 }
             }
             for(let i = 0; i < everythingByRoom.roomName.creeps.length; i++){
-                rH.shoot(everythingByRoom.roomName.creeps[i], everythingByRoom.roomName.hostiles)
+                rH.shoot(everythingByRoom.roomName.creeps[i], everythingByRoom.roomName.hostiles, everythingByRoom.roomName.structures)
             }
         });
+
+        let needRetreat = rQ.heal(quad, allHostiles.length)
+        if(!needRetreat){
+            for(let i = 0; i < quad.length; i++){
+                if(everythingByRoom[quad[i].pos.roomName]){
+                    for(let j = 0; j < everythingByRoom[quad[i].pos.roomName].hostiles.length; j++){
+                        if(everythingByRoom[quad[i].pos.roomName].hostiles[j].getActiveBodyparts(ATTACK) && everythingByRoom[quad[i].pos.roomName].hostiles[j].pos.inRangeTo(quad[i], 2)){
+                            needRetreat = true
+                        }
+                    }
+                }
+            }
+        }
+
+        if(needRetreat && allHostiles.length){
+            //if we have a member low, move away from all hostiles
+            const dangerous = _.filter(allHostiles, c => c.getActiveBodyparts(ATTACK) || c.getActiveBodyparts(RANGED_ATTACK))
+            const goals = _.map(dangerous, function(c) {
+                return { pos: c.pos, range: 5 }
+            })
+
+            const towers = _.filter(creep.room.find(FIND_HOSTILE_STRUCTURES), s => s.structureType == STRUCTURE_TOWER)
+            if(towers.length){
+                goals.concat(_.map(towers, function(t) { return { pos: t.pos, range: 20 } }))
+            }
+            rQ.move(quad, goals, status, 0, true)
+
+        }
         let target = null
         if(creep.memory.target){
             const targetCreep = Game.getObjectById(creep.memory.target)
@@ -293,20 +350,19 @@ var rQ = {
             }
         }
         //target = null
+
+        const flagName = creep.memory.city + "quadRally"
         if(target){
-            rQ.move(quad, target, status, 2)
+            rQ.move(quad, target, status, 2, false)
         } else if(_.find(creep.room.find(FIND_STRUCTURES), s => s.structureType == STRUCTURE_KEEPER_LAIR)){
             const lairs = _.filter(creep.room.find(FIND_STRUCTURES), s => s.structureType == STRUCTURE_KEEPER_LAIR)
             target = _.min(lairs, 'ticksToSpawn').pos
             if(target){
-               rQ.move(quad, target, status, 3) 
+               rQ.move(quad, target, status, 4) 
             }
-        } else if(Game.flags['quadRally']){
-            rQ.move(quad, Game.flags['quadRally'].pos, status, 3)
+        } else if(Game.flags[flagName]){
+            rQ.move(quad, Game.flags[flagName].pos, status, 3, false)
         }
-
-        //rQ.shoot(quad)
-        rQ.heal(quad, allHostiles.length)
             
 /****************************TEMPORARY LOGIC*********************************/
 
@@ -316,7 +372,7 @@ var rQ = {
         let targets = []
         Object.keys(everythingByRoom).forEach(function (roomName) {
             if(everythingByRoom[roomName].hostiles){
-                const hostiles = _.filter(everythingByRoom[roomName].hostiles, h => !u.isOnEdge(h.pos))
+                const hostiles = _.filter(everythingByRoom[roomName].hostiles, h => !u.isOnEdge(h.pos)).concat(everythingByRoom[roomName].structures)
                 targets.push(everythingByRoom[roomName].creeps[0].pos.findClosestByPath(hostiles))
             }
         })
@@ -343,7 +399,7 @@ var rQ = {
 
     heal: function(quad, hostiles){//TODO: preheal based on positioning/intelligence
         const damaged = _.min(quad, 'hits')
-        if(damaged.hits < damaged.hitsMax * 0.75){
+        if(damaged.hits < damaged.hitsMax * 0.9){
             for(let i = 0; i < quad.length; i++){
                 quad[i].heal(damaged)
             }
@@ -352,7 +408,10 @@ var rQ = {
                 quad[i].heal(quad[i])
             }
         }
-
+        if(damaged.hits < damaged.hitsMax * 0.8){
+            return true
+        }
+        return false
     },
 
     moveByPath: function(leader, quad, path, status){
@@ -377,6 +436,15 @@ var rQ = {
                 return //if quad wants to move against the grain on exit, stay still
             }
             for(let i = 0; i < quad.length; i++){
+                quad[i].move(direction)
+            }
+        } else if(!status.roomEdge){
+            for(let i = 0; i < quad.length; i++){
+                let nextCreep = i + 1
+                if(nextCreep >= quad.length){
+                    nextCreep -= quad.length
+                }
+                direction = quad[i].pos.getDirectionTo(quad[nextCreep])
                 quad[i].move(direction)
             }
         }
@@ -426,19 +494,35 @@ var rQ = {
         return goals
     },
 
-    move: function(quad, target, status, range){
+    move: function(quad, target, status, range, retreat){
+        if(!retreat){
+            retreat = false
+        }
         if(!range){
             range = 0
         }
-        const newTarget = rQ.longRangeToLocal(quad, status.leader, target)
-        let destination = {pos: target, range: range}
-        if(newTarget){
-            destination = newTarget
+        let destination = null
+        if(!retreat){
+            const newTarget = rQ.longRangeToLocal(quad, status.leader, target)
+            if(newTarget){
+                destination = newTarget
+            } else {
+                destination = {pos: target, range: range}
+            }
+        } else {
+            destination = target
         }
+        let matrix = {}
+
         const search = PathFinder.search(status.leader.pos, destination, {
             maxRooms: 4,
+            flee: retreat,
             roomCallback: function(roomName){
                 let costs = rQ.getRoomMatrix(roomName)
+                if(!costs){
+                    return false
+                }
+                let damageMatrix = rQ.getDamageMatrix(roomName)
                 if(status.roomEdge){
                     //if formation is on a roomEdge, and any of members is in a room but not on it's edge, we cannot move into that room
                     //unless they are all in that room
@@ -478,17 +562,49 @@ var rQ = {
                     Game.rooms[roomName].find(FIND_CREEPS).forEach(function(creep) {
                         if(!quadNames.includes(creep.name)){
                             //quad cannot move to any pos that another creep is capable of moving to
-                            for(let i = Math.max(0 , creep.pos.x - 2); i < Math.min(50, creep.pos.x + 2); i++){
-                                for(let j = Math.max(0 , creep.pos.y - 2); j < Math.min(50, creep.pos.y + 2); j++){
-                                    costs.set(i, j, 255)
+                            if(!creep.fatigue){
+                                for(let i = Math.max(0 , creep.pos.x - 2); i < Math.min(50, creep.pos.x + 2); i++){
+                                    for(let j = Math.max(0 , creep.pos.y - 2); j < Math.min(50, creep.pos.y + 2); j++){
+                                        costs.set(i, j, 255)
+                                    }
                                 }
+                            } else {
+                                costs.set(creep.pos.x, creep.pos.y, 255)
                             }
                         }
                     });
                 }
+
+                //factor in tower damage
+                //TODO: include creep damage as well
+                if(damageMatrix){
+                    const healPower = status.leader.getActiveBodyparts(HEAL) * 48
+                    for(let i = 0; i < 50; i++){
+                        for(let j = 0; j < 50; j++){
+                            const damage = damageMatrix.get(i, j)
+                            if(damage > healPower){
+                                costs.set(i, j, costs.get(i, j) + damage - healPower)
+                            }
+                        }
+                    }
+                }
+                matrix[roomName] = costs
                 return costs
             }
         })
+        if(search.incomplete){
+            //if no path, try looking for structures in the way
+            const structs = status.leader.room.find(FIND_STRUCTURES)
+            if(structs.length){
+                const goals = _.map
+                const newSearch = PathFinder.search(status.leader.pos, destination, {
+                    maxRooms: 2,
+                    roomCallback: function(roomName){
+
+                    }
+                })
+            }
+        }
         rQ.moveByPath(status.leader, quad, search.path, status)
     },
 

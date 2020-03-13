@@ -71,10 +71,10 @@ const p = {
                         }
                     })
                 })
-                if (!firstRoom || !(room.controller.level < 3)){
+                if (!firstRoom || room.controller.level > 3){
                     p.buildRoads(room, plan)
                 }
-                if (room.controller.level >= 5) {
+                if (room.controller.level >= 4 && room.storage && room.storage.store.energy > 200000) {
                     p.buildWalls(room, plan)
                 }
                 if (room.controller.level >= 6) {
@@ -173,6 +173,7 @@ const p = {
                     break
                 }
             }
+            Log.info(wall)
             if(wall){
                 continue
             }
@@ -202,6 +203,21 @@ const p = {
                     }
                 }
             }
+            //also if we can't get to the spawn from this wall we don't need it either
+            const origin = new RoomPosition(wallSpots[i].x, wallSpots[i].y, room.name)
+            const path = PathFinder.search(origin, {pos: new RoomPosition(plan.x, plan.y, room.name), range: 1}, {
+                plainCost: 1,
+                swampCost: 1,
+                maxOps: 1000,
+                maxRooms: 1,
+                roomCallback: function(roomName) {
+                    return Game.rooms[roomName].wallCosts
+                }
+            })
+            if(path.incomplete){
+                wallNeeded = false
+            }
+            console.log(wallNeeded)
             if(!wallNeeded){//at this point we will not build a wall if a path cannot be achieved outside anyway
                 continue
             }

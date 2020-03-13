@@ -44,7 +44,7 @@ function getRecipe(type, energyAvailable, room){
         d["defender"] = body([5, 1, 6], [RANGED_ATTACK, HEAL, MOVE])
         d["medic"] = body([2, 2], [MOVE, HEAL])
         d["quad"] = body([5, 1, 6], [RANGED_ATTACK, HEAL, MOVE])
-        d["harasser"] = body([5, 1, 6], [RANGED_ATTACK, HEAL, MOVE])
+        d["harasser"] = body([5, 6, 1], [RANGED_ATTACK, MOVE, HEAL])
         break
     case 5:
         //lvl 5 recipes
@@ -52,7 +52,7 @@ function getRecipe(type, energyAvailable, room){
         d["medic"] = body([5, 5], [MOVE, HEAL])
         d["robber"] = body([15, 15], [CARRY, MOVE])
         d["harasser"] = body([6, 2, 8], [RANGED_ATTACK, HEAL, MOVE])
-        d["quad"] = body([6, 2, 8], [RANGED_ATTACK, HEAL, MOVE])
+        d["quad"] = body([6, 8, 2], [RANGED_ATTACK, MOVE, HEAL])
         break
     case 6:
         // lvl 6 recipes
@@ -61,7 +61,7 @@ function getRecipe(type, energyAvailable, room){
         d["medic"] = body([7, 7], [MOVE, HEAL])
         d["robber"] = body([20, 20], [CARRY, MOVE])
         d["harasser"] = body([14, 6, 20], [RANGED_ATTACK, HEAL, MOVE])
-        d["quad"] = body([7, 3, 10], [RANGED_ATTACK, HEAL, MOVE])
+        d["quad"] = body([4, 9, 5], [RANGED_ATTACK, MOVE, HEAL])
         break
     case 7:
         // lvl 7 recipes
@@ -69,8 +69,9 @@ function getRecipe(type, energyAvailable, room){
         d["mineralMiner"] = body([22, 10, 16], [WORK, CARRY, MOVE])
         d["harasser"] = body([19, 6, 25], [RANGED_ATTACK, HEAL, MOVE])
         d["medic"] = body([5, 20, 15], [TOUGH, MOVE, HEAL])
-        d["breaker"] = body([10, 10], [MOVE, WORK])
+        d["breaker"] = body([25, 25], [MOVE, WORK])
         d["robber"] = body([25, 25], [CARRY, MOVE])
+        d['quad'] = body([12, 22, 10], [RANGED_ATTACK, MOVE, HEAL])
         break
     case 8:
         // lvl 8 recipes

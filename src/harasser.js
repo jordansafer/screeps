@@ -30,7 +30,7 @@ var rH = {
         rH.shoot(creep, hostiles)
     },
 
-    shoot: function(creep, hostiles){
+    shoot: function(creep, hostiles, structures){
         //RMA if anybody is touching
         for(var i = 0; i < hostiles.length; i++){
             if(hostiles[i].pos.isNearTo(creep.pos)){
@@ -49,6 +49,14 @@ var rH = {
         const newTarget = creep.pos.findClosestByRange(hostiles)
         if(newTarget && newTarget.pos.getRangeTo(creep) <= 3){
             creep.rangedAttack(newTarget)
+            return
+        }
+        if(structures){
+            const struct = creep.pos.findClosestByRange(structures)
+            if(struct && struct.pos.inRangeTo(creep.pos, 3)){
+                creep.rangedAttack(struct)
+                return
+            }
         }
     },
 

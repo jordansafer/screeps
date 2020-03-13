@@ -3,7 +3,7 @@ var u = require("./utils")
 
 var rSR = {
     name: "skRunner",
-    type: "robber",
+    type: "runner",
     target: () => 0,
 
     /** @param {Creep} creep **/
@@ -24,9 +24,10 @@ var rSR = {
                     const room = Game.rooms[sources[Object.keys(sources)[i]].roomName]
                     if(room && room.name != prevRoom){
                         prevRoom = room.name //prevents scanning the same room twice
-                        const container = _.find(room.find(FIND_STRUCTURES), s => s.structureType == STRUCTURE_CONTAINER && s.store.energy >= creep.store.getCapacity())
-                        if(container){
-                            actions.withdraw(creep, container, RESOURCE_ENERGY)
+                        const containers = _.filter(room.find(FIND_STRUCTURES), s => s.structureType == STRUCTURE_CONTAINER && s.store.energy >= creep.store.getCapacity())
+                        if(containers.length){
+                            const target = creep.pos.findClosestByPath(containers) || containers[0]
+                            actions.withdraw(creep, target, RESOURCE_ENERGY)
                             return
                         }
                     }
